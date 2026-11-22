@@ -4,6 +4,8 @@ Priority: unblock Jira setup and complete a live end-to-end report first. The re
 
 Task labels: **MCP** means the task needs Jira-side access through an MCP integration; no Jira MCP server is currently configured. **custom skill** means use this repository's instructions, scripts, or local implementation; it does not imply a separate VS Code skill must be installed.
 
+GitHub issue references: no backlog issues currently exist in `anithap/jira-confluence-automation`; issue numbers will be added next to tasks once created.
+
 ## Setup
 
 - [x] Confirm the target Jira project key is `SAM1` and the selected Scrum board ID is `1`. (MCP)
