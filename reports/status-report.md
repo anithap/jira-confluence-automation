@@ -1,0 +1,17 @@
+- Accomplishments
+  - Confirmed Jira project key SAM1 and Scrum board ID 1.
+  - Implemented the Jira report generator and offline unit tests.
+  - Added Jira pagination, status and story-point calculations, blocker detection, HTML escaping, and atomic report writing.
+  - Added Windows Task Scheduler setup for a daily local refresh.
+  - Documented report setup, templates, required configuration, and human-review requirements.
+- Blockers
+  - Story-point custom field ID remains unknown; 12 is not a valid customfield_<digits> ID.
+  - Local config.json and Jira API token have not been configured.
+  - Live Jira validation is blocked until the custom field ID and account-specific configuration are available.
+  - The live active sprint and current Jira metrics remain unavailable.
+- Next Week
+  - Identify and confirm the full Jira story-point custom field ID.
+  - Create local config.json and configure the Jira API token through the environment.
+  - Run the report against board 1 and verify live sprint metrics and issue details.
+  - Correct configuration or integration issues found during live validation.
+  - Verify the successful HTML report, then install and validate the daily Windows task.
