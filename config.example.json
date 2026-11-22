@@ -1,0 +1,11 @@
+{
+  "jira_base_url": "https://anitharanip.atlassian.net",
+  "board_id": null,
+  "project_key": "SAM1",
+  "jira_email": "your-atlassian-account-email",
+  "api_token_env": "JIRA_API_TOKEN",
+  "story_points_field": "",
+  "blocker_status": "Blocked",
+  "blocker_age_days": 5,
+  "output_path": "C:\\workspace\\hello-genai\\current-sprint-status.html"
+}

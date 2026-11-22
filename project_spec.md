@@ -192,9 +192,10 @@ The automation must not:
 - Estimate blocker history that Jira does not provide
 - Present a partial report as complete
 
-### FR-10: Manual Execution
+### FR-10: Daily and Manual Execution
 
-The initial interface must run locally through a command line:
+The automation must support both a daily local Windows scheduled task and
+manual command-line execution:
 
 ```text
 python generate_sprint_report.py --config config.json
@@ -212,6 +213,8 @@ Configuration must include:
 - Output path
 
 The token must be read from an environment variable or local secret store.
+The daily task must run at a user-selected local time. Manual execution must
+remain available independently of the scheduled task.
 
 ### FR-11: Human Approval
 
@@ -375,6 +378,7 @@ SprintIssue
 - Only issues in the active sprint appear in the report.
 - Jira `Done` statuses count as complete.
 - The report includes status breakdown, work completion, story points, accomplishments, and blockers.
+- The Windows scheduled task supports a daily run at a user-selected local time.
 - A `Blocked` issue updated at least five days ago appears in the blocker list.
 - Missing story points are identified and are not counted as zero.
 - No credentials appear in logs or output.
@@ -416,7 +420,7 @@ SprintIssue
 - Automatic Jira updates
 - Email, Teams, Slack, or Jira distribution
 - Interactive web dashboard
-- Scheduled execution in the initial release
+- Hosted scheduled execution
 - Historical sprint reporting
 - Multiple boards or projects
 - Assignee workload reporting
