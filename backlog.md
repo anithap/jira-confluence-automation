@@ -50,6 +50,18 @@ GitHub issue references: no backlog issues currently exist in `anithap/jira-conf
 - [ ] After identifying the story-point field, document how to set it in local configuration without publishing account-specific secrets. (custom skill)
 - [ ] Update the README with any live-validation or scheduled-task setup findings that change the operator workflow; preserve the human-review-before-sharing requirement. (custom skill)
 
+## Module 19 GitHub Coding Agent Delegation
+
+Good candidates for a GitHub coding agent, once corresponding issues exist:
+
+- Implement the assignee-display configuration option after the team-approved default is known.
+- Implement the completion-status allowlist and its tests if the team decides it is required.
+- Add the focused configuration, malformed-response, API-failure, retry, and story-point validation tests.
+- Add regression tests for preserving the prior report after retrieval or write failures, then run the offline test suite.
+- Update setup and operator documentation after the story-point field and live-validation findings are confirmed.
+
+Keep Jira field discovery, account-specific configuration, API-token setup, team policy decisions, live Jira acceptance checks, and Task Scheduler execution human-led. The coding agent may implement code or tests around confirmed requirements, but must not receive secrets or guess account-specific values.
+
 ## Handoff Notes
 
 - The next action is to look up the Jira story-point field ID. The user deferred this lookup; do not guess an ID or create a knowingly invalid `config.json`.
