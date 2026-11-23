@@ -592,12 +592,12 @@
 
 | Milestone | Task dependencies | Exit criteria |
 |---|---|---|
-| M1 Database and API skeleton | BE-001 through BE-007 | PostgreSQL, migrations, and Express routes start in Docker |
-| M2 Frontend skeleton | FE-001 through FE-005 | React routes and shared API states render |
-| M3 Jira retrieval | FI-001 through FI-004 | Jira fixtures resolve one sprint and normalize issues |
-| M4 Report features | FI-005 through FI-011 | Metrics, HTML, and atomic refresh replacement work |
-| M5 Integrated application | IT-001 through IT-005 | Frontend/backend/Docker flows pass |
-| M6 Release candidate | IT-006 and IT-007 | Security, performance, tests, and manual review pass |
+| M1 Database and API skeleton | BE-001, BE-002, BE-003, BE-004, BE-005, BE-006, BE-007 | PostgreSQL, migrations, and Express routes start in Docker |
+| M2 Frontend skeleton | FE-001, FE-002, FE-003, FE-004, FE-005 | React routes and shared API states render |
+| M3 Jira retrieval | FI-001, FI-002, FI-003, FI-004 | Jira fixtures resolve one sprint and normalize issues |
+| M4 Report features | FI-005, FI-006, FI-007, FI-008, FI-009, FI-010, FI-011 | Metrics, HTML, and atomic refresh replacement work |
+| M5 Integrated application | IT-001, IT-002, IT-003, IT-004, IT-005 | Frontend/backend/Docker flows pass |
+| M6 Release candidate | IT-006, IT-007 | Security, performance, tests, and manual review pass |
 
 ## Definition of Done
 

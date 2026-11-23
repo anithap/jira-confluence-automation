@@ -2,7 +2,7 @@
 
 **Project:** Jira/Confluence Automation
 **Feature:** Daily Jira Active-Sprint Status Report
-**Status:** Draft
+**Status:** Clarified
 **Constitution:** [constitution.md](constitution.md)
 **Source specifications:** [project_spec.md](../project_spec.md), [requirements.md](../requirements.md)
 
@@ -42,6 +42,12 @@ The initial implementation must not:
 - Infer issue blocker history.
 - Use generative AI to create report narratives.
 - Support automatic polling or real-time Jira updates.
+- Expose a React/Vite review application or Express REST API in the prototype.
+- Persist application state in PostgreSQL in the prototype.
+- Integrate with Confluence or publish, update, or synchronize any Confluence
+  page.
+- Implement dashboard login, Jira OAuth, multi-user authorization, or external
+  network access.
 
 ## 4. Target Users
 
@@ -92,22 +98,21 @@ production configuration.
 
 The implementation must follow [constitution.md](constitution.md):
 
-- Frontend: React 18.x with Vite
-- Backend: Node.js v26.13.1 with Express
-- Package manager: npm 11.20.0
-- Runtime manager: nvm 1.2.2
-- Database: PostgreSQL 15.x
-- Infrastructure: Docker 29.9.3 and Docker Compose
-- Atlassian integrations: Jira Cloud REST API; Confluence integration is not
-  required for the MVP
+- Prototype runtime: Python 3.11 or the repository's installed supported Python
+  version
+- Primary interface: command-line script
+- Report format: standalone HTML
+- Atlassian integration: Jira Cloud REST API
+- Scheduling: local Windows Scheduled Task
+- Database: none for the prototype
+- Docker: not required for prototype execution
+- Confluence: out of scope
+- Future architecture in [constitution.md](constitution.md): React 18/Vite,
+  Node.js v26.13.1/Express, PostgreSQL 15.x, and Docker 29.9.3
 
-Package manifests and lockfiles must pin supporting dependencies. PostgreSQL
-must be available for the target application architecture even though the MVP
-does not require historical sprint snapshots.
-
-The CLI report may be a local entry point to the same backend services rather
-than a separate implementation. Python-based alternatives must not replace the
-Node.js/Express architecture defined by the constitution.
+Python package manifests or lock files must pin supporting dependencies. The
+MVP is independent of PostgreSQL, React/Vite, Express, Docker, and Node.js.
+The constitution defines the architecture for a future web application phase.
 
 ## 7. User Stories
 
@@ -212,6 +217,14 @@ The system must:
 
 Arbitrary selection among multiple active sprints is prohibited.
 
+Resolution rules:
+
+- Zero active sprints: fail with `NO_ACTIVE_SPRINT`.
+- Exactly one active sprint: continue.
+- More than one active sprint: fail with `AMBIGUOUS_ACTIVE_SPRINT`.
+- Closed, future, and archived sprints are not active candidates.
+- Sprint and issue data must correspond to the same board and project.
+
 ### FR-004: Retrieve Sprint Issues
 
 The system must retrieve all issues in the resolved sprint using Jira pagination.
@@ -248,6 +261,18 @@ The report must include:
 
 The narrative must not invent facts, causes, forecasts, or risk history.
 
+Use this deterministic template:
+
+```text
+Sprint: <sprint name> (<start date> to <end date>)
+Issues: <completed> completed, <remaining> remaining, <total> total
+Issue completion: <percentage>% or Unavailable
+Story points: <completed>/<total> completed or Unavailable
+Highlighted blockers: <count>
+Data: refreshed at <UTC timestamp> (<local timezone>)
+Status: Draft - review before distribution
+```
+
 ### FR-006: Show Status Breakdown
 
 The report must show issue counts by:
@@ -277,6 +302,9 @@ completed issue count / total issue count
 
 If there are no issues, issue completion percentage must be shown as unavailable.
 
+Use Jira's `Done` status category only. Status-name allowlists and overrides
+are out of scope for the prototype.
+
 ### FR-008: Calculate Story-Point Progress
 
 Story points must come from the configured Jira custom field.
@@ -291,6 +319,20 @@ The report must calculate:
 Missing, invalid, or negative values must not be treated as zero. If any value
 prevents an accurate calculation, totals and affected percentages must be
 marked unavailable and the count of missing values must be identified.
+
+Rules:
+
+- Valid story points are finite numeric values greater than or equal to zero.
+- Zero is valid.
+- Missing Jira values, null values, invalid strings, and negative values mark
+  the story-point calculation unavailable.
+- `totalStoryPoints`, `completedStoryPoints`, and `remainingStoryPoints` are
+  each `null` when an accurate calculation is impossible.
+- The percentage is `completedStoryPoints / totalStoryPoints`, rounded to two
+  decimal places for display.
+- The calculation uses current active-sprint scope, not a historical initial
+  scope or a manually inferred burnup.
+- No historical or projected chart is generated.
 
 ### FR-009: List Completed Accomplishments
 
@@ -333,6 +375,12 @@ The report must:
 The previous report must remain unchanged until generation completes
 successfully.
 
+The HTML file must be UTF-8 encoded and use a standalone `.html` extension.
+Jira issue links must open in a new browser tab or window. The prototype must
+not include a download API or iframe preview. A report is stale if it is more
+than 24 hours after its `dataTimestamp`; stale reports must display a clear
+warning and preserve the timestamp.
+
 ### FR-012: Write the Report Atomically
 
 After all required Jira responses and calculations succeed, the system must
@@ -351,6 +399,16 @@ The system must support:
   for both entry points.
 
 Manual execution must remain available independently of scheduling.
+
+Scheduling decisions:
+
+- The Windows Scheduled Task uses one configured local timezone.
+- The task starts once at the user-selected local time.
+- A failed run emits an error and does not retry automatically.
+- Scheduled and manual runs must not run concurrently. If the process detects
+  an existing run lock, it exits non-zero without changing the report.
+- Missed executions due to a stopped machine or disabled task are not run
+  automatically after startup.
 
 ### FR-014: Prevent External Actions
 
@@ -377,377 +435,35 @@ or report-generation failure, the system must:
 
 ## 9. API and Internal Interface Requirements
 
-The React/Vite frontend communicates with Express through JSON REST endpoints.
-Atlassian credentials, Jira API calls, and secret configuration must remain
-server-side. The API must not return Jira authorization headers or secret
-values.
+Express REST endpoints and a React/Vite frontend are **out of scope** for the
+prototype. The prototype interface is the command line and the output is the
+standalone HTML file.
 
-### Endpoint Summary
+The prototype CLI contract is:
 
-| Method | Endpoint | Purpose | Request data | Response data |
-|---|---|---|---|---|
-| `GET` | `/health` | Check backend availability | None | Service status and timestamp |
-| `GET` | `/api/configuration/status` | Show whether required non-secret configuration is valid | None | Configuration fields with secret names masked |
-| `POST` | `/api/report/refresh` | Start a manual Jira refresh | Optional refresh reason/source | Run ID, status, and accepted timestamp |
-| `GET` | `/api/report` | Return the latest successful report state | None | Sprint metrics, issue lists, timestamps, and source IDs |
-| `GET` | `/api/report/html` | Return or download the standalone report | Optional download flag | HTML content or HTML download |
-| `GET` | `/api/report/runs/:runId` | Inspect a refresh operation | Run ID path parameter | Run status, timestamp, and safe error details |
-
-### `GET /health`
-
-Returns backend readiness without exposing secrets or Jira data.
-
-```json
-{
-  "status": "ready",
-  "timestamp": "2026-11-23T10:00:36.906+05:30"
-}
+```text
+python generate_sprint_report.py --config config.json
 ```
 
-The endpoint must return `503` with a non-secret status reason if required
-services are unavailable.
-
-### `GET /api/configuration/status`
-
-Returns only non-secret configuration and validation status. Secret values
-must never be returned.
-
-```json
-{
-  "isValid": true,
-  "jiraBaseUrl": "https://anitharanip.atlassian.net",
-  "projectKey": "SAM1",
-  "boardId": 12345,
-  "storyPointFieldId": "customfield_10000",
-  "blockedStatus": "Blocked",
-  "blockerAgeThresholdDays": 5,
-  "includeAssigneeNames": true,
-  "jiraTokenConfigured": true
-}
-```
-
-`500` or `422` is returned for a configuration that cannot safely be used.
-
-### `POST /api/report/refresh`
-
-Starts a Jira refresh and stores no token or Jira authorization header.
-
-Request:
-
-```json
-{
-  "source": "manual"
-}
-```
-
-Response:
-
-```json
-{
-  "runId": "c3a8f5dc-5e8b-4e37-9fbb-14d8cb5f6c21",
-  "status": "completed",
-  "startedAt": "2026-11-23T10:00:36.906+05:30",
-  "completedAt": "2026-11-23T10:00:42.121+05:30"
-}
-```
-
-Successful refreshes return `200`. A validation or Jira failure returns `502`
-or `422` with a safe operation-specific message and leaves the latest report
-unchanged.
-
-### `GET /api/report`
-
-Returns the latest successful report DTO:
-
-```json
-{
-  "runId": "c3a8f5dc-5e8b-4e37-9fbb-14d8cb5f6c21",
-  "dataTimestamp": "2026-11-23T10:00:42.121+05:30",
-  "sprint": {
-    "id": 1001,
-    "name": "Sprint 42",
-    "startDate": "2026-11-16",
-    "endDate": "2026-11-29"
-  },
-  "projectKey": "SAM1",
-  "boardId": 12345,
-  "metrics": {
-    "totalIssues": 20,
-    "completedIssues": 12,
-    "remainingIssues": 8,
-    "issueCompletionPercentage": 60,
-    "totalStoryPoints": 55,
-    "completedStoryPoints": 34,
-    "remainingStoryPoints": 21,
-    "storyPointCompletionPercentage": 61.82
-  },
-  "statusCounts": [],
-  "statusCategoryCounts": [],
-  "completedIssues": [],
-  "highlightedBlockers": []
-}
-```
-
-Story-point metrics and their percentages must be `null` when unavailable.
-Missing-value counts must be returned separately instead of replacing missing
-values with zero.
-
-### `GET /api/report/html`
-
-Returns the standalone report HTML or a downloadable attachment when requested.
-The response must contain no API credentials and must retain the last successful
-report after refresh failures.
-
-### `GET /api/report/runs/:runId`
-
-Returns run metadata only:
-
-```json
-{
-  "runId": "c3a8f5dc-5e8b-4e37-9fbb-14d8cb5f6c21",
-  "source": "manual",
-  "status": "failed",
-  "startedAt": "2026-11-23T10:00:36.906+05:30",
-  "completedAt": "2026-11-23T10:00:38.002+05:30",
-  "error": {
-    "operation": "jira_active_sprint_lookup",
-    "message": "Unable to resolve exactly one active sprint."
-  }
-}
-```
-
-Implementation must apply CORS only to approved origins, add appropriate
-HTTP security headers, redact credentials in logs and errors, and isolate Jira
-API access behind the backend integration module.
+Exit status `0` means the report was generated and atomically replaced. A
+non-zero exit means generation failed and the previous report must remain
+unchanged. Standard output and error output must contain no Jira credential or
+authorization header.
 
 ## 10. UI Screens
 
-The React/Vite frontend is a review and refresh interface for the report.
-It must not expose source credentials or raw Jira API responses.
-
-### Screen: Main Report
-
-Purpose: let the Manager review the latest successful sprint report.
-
-Required content:
-
-- Sprint name and date range
-- Project and board identifiers
-- Latest successful Jira data timestamp
-- Issue completion total and percentage
-- Story-point completion or unavailable state
-- Status breakdown by exact Jira status
-- Status-category breakdown
-- Completed accomplishments
-- Highlighted blockers
-- Direct Jira issue links
-- Manual refresh action
-- Last refresh status
-
-States:
-
-- Loading the latest report
-- Successful report
-- No report available
-- Refresh in progress
-- Refresh failed with preserved previous report
-- Data fields unavailable or missing
-
-The report must clearly indicate that it is a draft requiring human review
-before manual distribution.
-
-### Screen: Configuration Status
-
-Purpose: make configuration readiness visible without showing secrets.
-
-Required content:
-
-- Jira base URL
-- Project key
-- Board ID
-- Story-point field ID
-- Blocker status and age threshold
-- Assignee-name setting
-- Whether the Jira token is configured
-- Configuration validity
-- Safe correction guidance
-
-The screen must not provide a field that submits, displays, or returns a Jira
-API token.
-
-### Screen: Refresh Progress and Result
-
-Purpose: show the outcome of a manual refresh.
-
-Required content:
-
-- Refresh start and completion time
-- Operation status
-- Jira lookup stage
-- Safe error message
-- Link or action to view the previous successful report
-- Retry action
-
-On failure, the previous report remains visible and its data timestamp must
-remain unchanged. The screen must not imply that failed data has become current.
-
-### Screen: HTML Report Preview
-
-Purpose: provide a browser view of the standalone report before distribution.
-
-Required behavior:
-
-- Render the server-generated, escaped HTML in a controlled preview area or
-  open it as a standalone document.
-- Provide a download or open action.
-- State that the report is a draft.
-- Provide no automatic email, chat, Jira, or Confluence publish action.
-
-### Screen: Error State
-
-Purpose: communicate configuration or source-system failures without leaking
-technical secrets.
-
-Required behavior:
-
-- Identify the failed operation.
-- Describe the safe next step.
-- Preserve previously loaded report content.
-- Offer manual retry only after the configuration or source issue is resolved.
-
-The UI must use semantic HTML, visible focus states, keyboard controls,
-responsive layouts, and clear unavailable/error states.
+React/Vite UI screens are **out of scope** for the prototype. The HTML report
+is the complete user-facing deliverable. It must be opened directly in a
+browser, remain clearly labeled as a human-review draft, and provide no
+automatic distribution controls.
 
 ## 11. Data Model
 
-PostgreSQL 15 stores the latest successful report state and bounded refresh
-audit metadata. The MVP does not require historical Jira issue snapshots.
-The application must retain only the latest successful report and must not
-present older data as current.
+PostgreSQL persistence is **out of scope** for the prototype. The application
+stores no run history or report snapshot in a database. The latest successful
+HTML file is the only retained report artifact.
 
-### Database Entities
-
-#### `application_config`
-
-Stores non-secret application settings and validation status.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | UUID | Stable configuration record |
-| `jira_base_url` | VARCHAR | Jira Cloud base URL |
-| `project_key` | VARCHAR | Configured Jira project key |
-| `board_id` | BIGINT | Configured Scrum board ID |
-| `story_point_field_id` | VARCHAR | Jira custom field ID |
-| `blocked_status` | VARCHAR | Blocker status name |
-| `blocker_age_threshold_days` | INTEGER | Minimum blocker age |
-| `include_assignee_names` | BOOLEAN | Whether assignee names may be shown |
-| `output_path` | TEXT | Local standalone HTML path |
-| `is_valid` | BOOLEAN | Configuration validation result |
-| `updated_at` | TIMESTAMPTZ | Last configuration update |
-
-API credential names and secrets must not be stored in this table. Jira API
-tokens remain environment or local secret-store values.
-
-#### `refresh_run`
-
-Records manual or scheduled refresh attempts.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | UUID | Run identifier |
-| `source` | VARCHAR | `manual` or `scheduled` |
-| `status` | VARCHAR | `running`, `completed`, or `failed` |
-| `started_at` | TIMESTAMPTZ | Run start time |
-| `completed_at` | TIMESTAMPTZ | Run end time |
-| `error_operation` | VARCHAR | Safe operation identifier |
-| `error_message` | TEXT | Redacted error message |
-
-No authorization header, API token, response body, or raw secret is stored.
-
-#### `latest_report`
-
-Stores the latest successful calculated report.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | UUID | One-row latest-report identifier |
-| `refresh_run_id` | UUID | Successful run reference |
-| `sprint_id` | BIGINT | Jira sprint ID |
-| `sprint_name` | VARCHAR | Jira sprint name |
-| `sprint_start_date` | DATE | Sprint start date |
-| `sprint_end_date` | DATE | Sprint end date |
-| `project_key` | VARCHAR | Jira project key |
-| `board_id` | BIGINT | Jira board ID |
-| `data_timestamp` | TIMESTAMPTZ | Successful Jira refresh time |
-| `total_issue_count` | INTEGER | Total sprint issues |
-| `completed_issue_count` | INTEGER | Jira `Done` issues |
-| `remaining_issue_count` | INTEGER | Remaining issues |
-| `issue_completion_percentage` | NUMERIC | Nullable issue percentage |
-| `total_story_points` | NUMERIC | Nullable accurate total |
-| `completed_story_points` | NUMERIC | Nullable completed total |
-| `remaining_story_points` | NUMERIC | Nullable remaining total |
-| `story_point_completion_percentage` | NUMERIC | Nullable story-point percentage |
-| `missing_story_point_count` | INTEGER | Count of missing or invalid values |
-| `executive_summary` | TEXT | Deterministic summary |
-| `html_path` | TEXT | Local report path |
-| `created_at` | TIMESTAMPTZ | Report persistence time |
-
-#### `latest_status_count`
-
-Stores status and status-category counts for the latest successful report.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | UUID | Count row identifier |
-| `latest_report_id` | UUID | Report relationship |
-| `dimension` | VARCHAR | `status` or `status_category` |
-| `dimension_name` | VARCHAR | Exact Jira status or category name |
-| `issue_count` | INTEGER | Count for the dimension |
-
-#### `latest_report_issue`
-
-Stores issue details needed by completed-accomplishment and blocker views.
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | UUID | Database issue row |
-| `latest_report_id` | UUID | Report relationship |
-| `issue_key` | VARCHAR | Jira issue key |
-| `summary` | TEXT | Jira issue summary |
-| `status_name` | VARCHAR | Jira status |
-| `status_category` | VARCHAR | Jira status category |
-| `assignee_name` | VARCHAR | Nullable permitted assignee |
-| `issue_type` | VARCHAR | Jira issue type |
-| `story_points` | NUMERIC | Nullable or unavailable story points |
-| `last_updated` | TIMESTAMPTZ | Jira last-updated timestamp |
-| `jira_url` | TEXT | Direct Jira issue link |
-| `is_completed` | BOOLEAN | Whether status category is `Done` |
-| `is_highlighted_blocker` | BOOLEAN | Whether blocker rules matched |
-
-### Entity Relationships
-
-```text
-application_config
-        |
-        | configuration context
-        v
-refresh_run --1:1--> latest_report
-                         |
-                         +--1:N--> latest_status_count
-                         |
-                         +--1:N--> latest_report_issue
-```
-
-- `refresh_run.refresh_run_id` identifies the successful run associated with
-  `latest_report.refresh_run_id`.
-- `latest_status_count.latest_report_id` belongs to exactly one latest report.
-- `latest_report_issue.latest_report_id` belongs to exactly one latest report.
-- A successful refresh replaces the latest report and its related latest status
-  and issue rows in one transaction.
-- A failed refresh inserts or updates run metadata only and does not delete or
-  modify the latest successful report.
-- PostgreSQL migrations must enforce foreign keys and unique constraints. The
-  database must hold at most one current `latest_report` record.
+The prototype's transient in-memory data model is:
 
 ### Domain Types
 
@@ -844,21 +560,41 @@ zero values.
 - Use semantic HTML and clear labels.
 - Preserve responsive behavior.
 - Make unavailable and error states explicit.
-- Ensure keyboard access if a React UI is provided.
+- A React UI is out of scope; the standalone HTML must remain responsive and
+  keyboard-independent for direct browser use.
 - Use clear status and error feedback without exposing internal details.
 
 ### NFR-006: Deployability
 
-- Frontend and backend must build independently.
-- Docker Compose must provide repeatable local service startup.
-- PostgreSQL must use the specified 15.x major version.
-- Node.js must use v26.13.1.
-- npm must use 11.20.0.
+- The prototype must run locally on Windows without Docker.
+- Docker, React/Vite, Express, PostgreSQL, Node.js, and npm requirements in the
+  constitution apply to future application phases, not the prototype.
+- The prototype may use Python 3.11 or the repository-supported interpreter.
+- Supporting packages must be declared in `requirements.txt` or a lock file.
 
 ## 14. Configuration Contract
 
 Configuration may be supplied by environment variables or a JSON file, but
 environment variables must take precedence for secrets.
+
+Environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `JIRA_BASE_URL` | Jira Cloud base URL |
+| `JIRA_ACCOUNT_EMAIL` | Jira account email |
+| `JIRA_API_TOKEN` | Jira API token |
+| `JIRA_PROJECT_KEY` | Jira project key |
+| `JIRA_BOARD_ID` | Jira numeric board ID |
+| `JIRA_STORY_POINT_FIELD_ID` | Jira story-point custom field ID |
+| `JIRA_BLOCKED_STATUS` | Optional blocker status name; default `Blocked` |
+| `JIRA_BLOCKER_AGE_DAYS` | Optional age threshold; default `5` |
+| `REPORT_OUTPUT_PATH` | Standalone HTML destination |
+| `INCLUDE_ASSIGNEE_NAMES` | Optional `true`/`false`; default `true` |
+
+The JSON file is the only non-secret configuration source for its keys.
+Environment variables override matching JSON keys. Secrets must never be read
+from or written to the JSON file.
 
 Example non-secret shape:
 
@@ -878,12 +614,23 @@ Example non-secret shape:
 The example board ID and story-point field ID are placeholders and must be
 replaced by confirmed configuration.
 
-Environment variables must include names for:
+For matching JSON keys, use these names:
 
-- Jira account email
-- Jira API token
-- Database connection settings
-- External integration controls
+| JSON key | Type | Required |
+|---|---|---|
+| `jiraBaseUrl` | string | Yes |
+| `jiraAccountEmail` | string | Yes |
+| `projectKey` | string | Yes |
+| `boardId` | integer | Yes |
+| `storyPointFieldId` | string | Yes |
+| `blockedStatus` | string | No; default `Blocked` |
+| `blockerAgeThresholdDays` | integer | No; default `5` |
+| `outputPath` | string | Yes |
+| `includeAssigneeNames` | boolean | No; default `true` |
+
+The Jira API token is accepted only through `JIRA_API_TOKEN`. Unknown JSON
+keys are rejected. Invalid types, negative age thresholds, malformed URLs,
+empty required strings, and missing secrets are fatal validation errors.
 
 ## 15. Testing Strategy
 
@@ -898,7 +645,7 @@ Environment variables must include names for:
 - Missing, invalid, and negative story-point values
 - Exactly five-day and older blocker thresholds
 - Status and status-category aggregation
-- HTML and React text escaping
+- HTML text escaping
 - Atomic report write behavior
 - Credential and secret redaction
 
@@ -911,8 +658,7 @@ Environment variables must include names for:
 - Story-point field discovery or mapping
 - Scheduled and manual refresh entry points
 - Standalone HTML generation
-- PostgreSQL persistence integration where data is persisted
-- Docker Compose startup
+- Atomic output replacement
 
 Integration tests must use fixtures or isolated Atlassian test workspaces.
 They must not mutate production Jira or Confluence data.
@@ -942,10 +688,9 @@ The feature is accepted when:
 
 ### Phase 1: Foundation
 
-- Add validated environment and application configuration.
-- Add Docker Compose services and PostgreSQL configuration.
-- Create Express integration and HTTP boundaries.
-- Create shared TypeScript or JavaScript domain contracts.
+- Add validated environment and JSON configuration.
+- Create the Python CLI entry point and Jira integration boundaries.
+- Add fixture-based unit-test support.
 
 ### Phase 2: Jira Integration
 
@@ -963,10 +708,10 @@ The feature is accepted when:
 
 ### Phase 4: Execution and Interface
 
-- Add manual CLI or service refresh entry point.
+- Add the manual CLI refresh entry point.
 - Add Windows scheduled-task instructions or scripts.
-- Add a React/Vite review interface only if required for the approved MVP.
-- Add configuration status and failure feedback.
+- Keep the React/Vite review interface out of scope.
+- Keep report refresh and run state local to CLI process output.
 
 ### Phase 5: Verification
 
@@ -974,24 +719,23 @@ The feature is accepted when:
 - Validate report content with Jira fixtures.
 - Test failure recovery and report preservation.
 - Perform manual report review.
-- Verify Docker and dependency versions.
+- Verify Windows scheduling and Python/dependency versions.
 
 ## 17. Open Questions
 
-Before implementation begins, confirm:
+There are no unresolved MVP scope questions. Confirmed or decided prototype
+values are:
 
-1. The numeric Jira board ID.
-2. The Jira project key; `SAM1` is currently a candidate.
-3. The Jira story-point custom field ID.
-4. Whether Jira `Done` status category is the final completion rule.
-5. How to handle more than one active sprint for the board.
-6. Whether assignee names may be included in the report.
-7. Whether a React UI is required for the MVP or whether local CLI and HTML
-   output are sufficient.
-8. Whether PostgreSQL stores configuration, run history, or no MVP state.
-
-Unresolved answers must not be guessed or replaced with default production
-values.
+1. The MVP is a Python CLI with standalone HTML output.
+2. Confluence, React/Vite, Express, PostgreSQL, Docker, OAuth, and a web UI are
+   out of scope.
+3. Jira's `Done` status category defines completed work.
+4. A `Blocked` status name defines blockers by default, with the status name
+   configurable.
+5. Missing or invalid story points make story-point totals unavailable.
+6. The previous HTML report is retained after failed refreshes.
+7. Board ID, project key, account email, and story-point field ID remain
+   deployment configuration prerequisites.
 
 ## 18. Requirements Traceability
 
