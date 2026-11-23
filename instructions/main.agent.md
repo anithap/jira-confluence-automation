@@ -6,3 +6,4 @@
 - For local Jira issue export checks, follow [validate-jira-issue-export.agent.md](validate-jira-issue-export.agent.md).
 - For story-point field discovery, follow [use-discover_story_points_field.agent.md](use-discover_story_points_field.agent.md).
 - For live active-sprint data verification, follow [use-verify_sprint_data.agent.md](use-verify_sprint_data.agent.md).
+- For SRP reviews of agent instruction files, follow [validate-instructions.agent.md](validate-instructions.agent.md).
