@@ -19,9 +19,9 @@ GitHub issue references:
 ## Core Features
 
 - [x] Validate required configuration, HTTPS Jira URL, board ID, token-variable name, story-point field ID, and blocker settings. (custom skill)
-- [x] Authenticate to Jira Cloud and retrieve the configured board, exactly one active sprint, and all sprint issue pages with bounded retries. (MCP)
-- [x] Normalize issue fields and restrict report calculations to the configured project. (custom skill)
-- [x] Calculate status counts, Done-category completion, story-point totals, missing estimates, and configurable stale-blocker highlights without treating missing values as zero. (custom skill)
+- [x] Authenticate to Jira Cloud and retrieve the configured board, exactly one active sprint, and all sprint issue pages with bounded retries. [Approach 3] (MCP)
+- [x] Normalize issue fields and restrict report calculations to the configured project. [Approach 3] (custom skill)
+- [x] Calculate status counts, Done-category completion, story-point totals, missing estimates, and configurable stale-blocker highlights without treating missing values as zero. [Approach 3] (custom skill)
 - [ ] Add an explicit configuration option for displaying assignee names; honor it throughout the report and document a team-approved default. [Issue #1](https://github.com/anithap/jira-confluence-automation/issues/1) (custom skill)
 - [ ] Confirm whether the team requires a configurable completion-status allowlist; if so, add validation and tests, otherwise document the Jira `Done` category as the completion rule. (custom skill)
 - [x] Render a standalone responsive HTML draft with a data timestamp, summary, progress, accomplishments, blockers, and escaped Jira text. (custom skill)
@@ -31,26 +31,26 @@ GitHub issue references:
 ## Integration
 
 - [ ] **P0 — Run the configured CLI against Jira:** execute `python generate_sprint_report.py --config config.json` and resolve authentication, permission, board, sprint, or field errors. (MCP)
-- [ ] Verify the returned sprint is the intended active sprint and that report issue keys, statuses, assignees, estimates, and links correspond to Jira. (MCP)
-- [ ] Confirm the Jira API returns all pages and that only issues from the intended project appear in the report. (MCP)
+- [ ] Verify the returned sprint is the intended active sprint and that report issue keys, statuses, assignees, estimates, and links correspond to Jira. [Approach 3] (MCP)
+- [ ] Confirm the Jira API returns all pages and that only issues from the intended project appear in the report. [Approach 3] (MCP)
 - [ ] Verify the displayed refresh timestamp represents the successful Jira data refresh, and that a failed scheduled refresh leaves the previous report and its last-success timestamp intact. (custom skill)
 - [ ] Confirm a successful manual run writes the configured HTML output, then install the daily task with `.\install_daily_task.ps1`. (custom skill)
 - [ ] Run the scheduled task under the intended Windows account and verify its last run succeeds at the selected local time. (custom skill)
 
 ## Testing
 
-- [x] Add offline tests covering status and point calculations, missing estimates, empty sprints, the five-day blocker boundary, status aggregation, issue pagination, project filtering, and HTML escaping. (custom skill)
-- [ ] Add focused tests for invalid and missing configuration, missing token, malformed Jira responses, authentication/API failures, bounded retry behavior, and invalid or negative story-point values. (custom skill)
-- [ ] Add regression tests that verify incomplete Jira retrieval or report-write failure leaves an existing output file unchanged. (custom skill)
-- [ ] Run `python -m unittest discover -s tests -v` and resolve any failures. (custom skill)
-- [ ] Perform acceptance validation against the configured Jira board: complete report in under five minutes, required report sections present, missing sprint dates shown as unavailable, no credentials in logs or output, no Jira edits, and no automatic distribution. (MCP)
+- [x] Add offline tests covering status and point calculations, missing estimates, empty sprints, the five-day blocker boundary, status aggregation, issue pagination, project filtering, and HTML escaping. [Approach 3] (custom skill)
+- [ ] Add focused tests for invalid and missing configuration, missing token, malformed Jira responses, authentication/API failures, bounded retry behavior, and invalid or negative story-point values. [Approach 3] (custom skill)
+- [ ] Add regression tests that verify incomplete Jira retrieval or report-write failure leaves an existing output file unchanged. [Approach 3] (custom skill)
+- [ ] Run `python -m unittest discover -s tests -v` and resolve any failures. [Approach 3] (custom skill)
+- [ ] Perform acceptance validation against the configured Jira board: complete report in under five minutes, required report sections present, missing sprint dates shown as unavailable, no credentials in logs or output, no Jira edits, and no automatic distribution. [Approach 1] (MCP)
 
 ## Documentation
 
 - [x] Document manual setup, token environment-variable handling, report generation, scheduled-task installation, report rules, and offline tests in `README.md`. (custom skill)
 - [x] Provide a report template, completion instructions, and a fictional example under `reports/`. (custom skill)
 - [ ] After identifying the story-point field, document how to set it in local configuration without publishing account-specific secrets. (custom skill)
-- [ ] Update the README with any live-validation or scheduled-task setup findings that change the operator workflow; preserve the human-review-before-sharing requirement. (custom skill)
+- [ ] Update the README with any live-validation or scheduled-task setup findings that change the operator workflow; preserve the human-review-before-sharing requirement. [Approach 1] (custom skill)
 
 ## Module 19 GitHub Coding Agent Delegation
 
@@ -60,7 +60,7 @@ Good candidates for a GitHub coding agent, once corresponding issues exist:
 - Implement the completion-status allowlist and its tests if the team decides it is required.
 - Add the focused configuration, malformed-response, API-failure, retry, and story-point validation tests.
 - Add regression tests for preserving the prior report after retrieval or write failures, then run the offline test suite.
-- Update setup and operator documentation after the story-point field and live-validation findings are confirmed.
+- Update setup and operator documentation after the story-point field and live-validation findings are confirmed. [Approach 1]
 
 Keep Jira field discovery, account-specific configuration, API-token setup, team policy decisions, live Jira acceptance checks, and Task Scheduler execution human-led. The coding agent may implement code or tests around confirmed requirements, but must not receive secrets or guess account-specific values.
 
